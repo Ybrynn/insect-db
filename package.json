@@ -4,8 +4,7 @@
   "description": "昆虫信息数据库 - 天水市果树研究所昆虫标本电子档案管理系统",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "powershell -Command \"Copy-Item -Recurse -Force 'public' 'dist\\public'; Copy-Item -Recurse -Force 'node_modules\\@img' 'dist\\node_modules\\@img'; if(!(Test-Path 'dist\\uploads')){New-Item -ItemType Directory -Path 'dist\\uploads' -Force}; Copy-Item 'package.json' 'dist'; Copy-Item '启动服务器.bat' 'dist'; Write-Host 'Distribution files copied to dist/'\""
+    "start": "node server.js"
   },
   "dependencies": {
     "sql.js": "^1.10.0",
