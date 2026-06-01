@@ -472,8 +472,28 @@ async function openEdit(id) {
   }
 }
 
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    document.getElementById('confirmMessage').textContent = msg;
+    modal.classList.remove('hidden');
+    const ok = document.getElementById('confirmOk');
+    const cancel = document.getElementById('confirmCancel');
+    const cleanup = result => {
+      modal.classList.add('hidden');
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+  });
+}
+
 async function confirmDelete(id) {
-  if (!confirm('确定要删除此标本记录吗？')) return;
+  if (!await showConfirm('确定要删除此标本记录吗？')) return;
   try {
     const res = await api.delete(id);
     if (res.error) { toast(res.error); return; }
@@ -554,6 +574,25 @@ document.getElementById('modalOverlay').addEventListener('click', (e) => {
 
 document.getElementById('detailModal').addEventListener('click', (e) => {
   if (e.target === e.currentTarget) closeDetail();
+});
+
+// Sidebar Toggle
+const sidebar = document.getElementById('taxonomySidebar');
+document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  const btn = document.getElementById('sidebarToggleBtn');
+  btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  btn.title = sidebar.classList.contains('collapsed') ? '展开侧栏' : '收起侧栏';
+});
+document.getElementById('sidebarToggleBtnMobile').addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed');
+  if (sidebar.classList.contains('collapsed')) {
+    document.getElementById('sidebarToggleBtn').textContent = '▶';
+    document.getElementById('sidebarToggleBtn').title = '展开侧栏';
+  } else {
+    document.getElementById('sidebarToggleBtn').textContent = '◀';
+    document.getElementById('sidebarToggleBtn').title = '收起侧栏';
+  }
 });
 
 // Sidebar Tabs
@@ -919,7 +958,7 @@ async function loadCustomFieldsList() {
     });
     list.querySelectorAll('.btn-delete-field').forEach(btn => {
       btn.addEventListener('click', async () => {
-        if (!confirm('确定删除此自定义项目？关联数据也将清除。')) return;
+        if (!await showConfirm('确定删除此自定义项目？关联数据也将清除。')) return;
         await api.deleteCustomField(btn.dataset.id);
         loadCustomFieldsList();
         loadCustomFieldsInputs();
@@ -975,39 +1014,39 @@ function renderStats(stats) {
   if (stats.byCustom) {
     for (const [name, values] of Object.entries(stats.byCustom)) {
       const max = values.length > 0 ? values[0].count : 1;
-      customCharts += `<div class="stats-chart"><h4>${esc(name)}分布</h4>${renderBarChart(values, 'value', max)}</div>`;
+      customCharts += `<div class="stats-chart"><h4>${esc(name)}分布</h4><div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(values, 'value', max)}</div><div class="chart-col chart-col-pie">${renderPieChart(values, 'value')}</div></div></div>`;
     }
   }
 
   return `
     <div class="stats-summary">
-      <div class="stats-card"><div class="stats-card-value">${stats.total}</div><div class="stats-card-label">标本总数</div></div>
-      <div class="stats-card"><div class="stats-card-value">${stats.byOrder.length}</div><div class="stats-card-label">昆虫目数</div></div>
-      <div class="stats-card"><div class="stats-card-value">${stats.byFamily.length}</div><div class="stats-card-label">昆虫科数</div></div>
-      <div class="stats-card"><div class="stats-card-value">${stats.byHost.length}</div><div class="stats-card-label">寄主种类</div></div>
-      <div class="stats-card"><div class="stats-card-value">${stats.byDamage.length}</div><div class="stats-card-label">危害类型</div></div>
+      <div class="stats-card"><div class="stats-card-value">${stats.total}</div><div class="stats-card-label">🦗 标本总数</div></div>
+      <div class="stats-card"><div class="stats-card-value">${stats.byOrder.length}</div><div class="stats-card-label">📑 昆虫目数</div></div>
+      <div class="stats-card"><div class="stats-card-value">${stats.byFamily.length}</div><div class="stats-card-label">📑 昆虫科数</div></div>
+      <div class="stats-card"><div class="stats-card-value">${stats.byHost.length}</div><div class="stats-card-label">🌿 寄主种类</div></div>
+      <div class="stats-card"><div class="stats-card-value">${stats.byDamage.length}</div><div class="stats-card-label">⚠️ 危害类型</div></div>
     </div>
 
     <div class="stats-charts">
       <div class="stats-chart">
         <h4>按目分布</h4>
-        ${renderBarChart(stats.byOrder, 'insect_order', maxOrder)}
+        <div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(stats.byOrder, 'insect_order', maxOrder)}</div><div class="chart-col chart-col-pie">${renderPieChart(stats.byOrder, 'insect_order')}</div></div>
       </div>
       <div class="stats-chart">
         <h4>按科分布</h4>
-        ${renderBarChart(stats.byFamily, 'family', maxFamily)}
+        <div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(stats.byFamily, 'family', maxFamily)}</div><div class="chart-col chart-col-pie">${renderPieChart(stats.byFamily, 'family')}</div></div>
       </div>
       <div class="stats-chart">
         <h4>按寄主分布</h4>
-        ${renderBarChart(stats.byHost, 'name', maxHost)}
+        <div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(stats.byHost, 'name', maxHost)}</div><div class="chart-col chart-col-pie">${renderPieChart(stats.byHost, 'name')}</div></div>
       </div>
       <div class="stats-chart">
         <h4>按危害类型分布</h4>
-        ${renderBarChart(stats.byDamage, 'name', maxDamage)}
+        <div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(stats.byDamage, 'name', maxDamage)}</div><div class="chart-col chart-col-pie">${renderPieChart(stats.byDamage, 'name')}</div></div>
       </div>
       <div class="stats-chart">
         <h4>按类别分布</h4>
-        ${renderBarChart(stats.byCategory || [], 'category', maxCategory)}
+        <div class="chart-row"><div class="chart-col chart-col-bar">${renderBarChart(stats.byCategory || [], 'category', maxCategory)}</div><div class="chart-col chart-col-pie">${renderPieChart(stats.byCategory || [], 'category')}</div></div>
       </div>
       <div class="stats-chart">
         <h4>按属分布</h4>
@@ -1018,21 +1057,64 @@ function renderStats(stats) {
   `;
 }
 
+const CHART_COLORS = [
+  '#c08080', '#dbb0a8', '#80b880', '#a8d0a8',
+  '#68b098', '#88c8b4', '#c888a8', '#b498c0',
+  '#78b8a0', '#d4a888', '#98b080', '#c8a898'
+];
+
 function renderBarChart(data, nameField, max) {
   if (data.length === 0) return '<div class="stats-empty">暂无数据</div>';
   return `<div class="bar-chart">
-    ${data.map(item => {
+    ${data.map((item, i) => {
       const pct = (item.count / max * 100).toFixed(1);
+      const c = CHART_COLORS[i % CHART_COLORS.length];
       return `
         <div class="bar-row">
           <div class="bar-label" title="${esc(item[nameField])}">${esc(item[nameField])}</div>
           <div class="bar-track">
-            <div class="bar-fill" style="width:${pct}%"></div>
+            <div class="bar-fill" style="width:${pct}%;background:${c}"></div>
           </div>
           <div class="bar-value">${item.count}</div>
         </div>
       `;
     }).join('')}
+  </div>`;
+}
+
+function renderPieChart(data, nameField) {
+  if (data.length === 0) return '<div class="stats-empty">暂无数据</div>';
+  const total = data.reduce((s, d) => s + d.count, 0);
+  if (total === 0) return '<div class="stats-empty">暂无数据</div>';
+
+  const n = data.length;
+  const sectorAngle = (2 * Math.PI) / n;
+  const maxCount = Math.max(...data.map(d => d.count));
+  const cx = 80, cy = 80, maxR = 68, minR = 14;
+  const gap = 0.02;
+
+  let paths = '';
+  let legend = '';
+
+  data.forEach((item, i) => {
+    const r = minR + (item.count / maxCount) * (maxR - minR);
+    const a1 = -Math.PI / 2 + i * sectorAngle + gap;
+    const a2 = -Math.PI / 2 + (i + 1) * sectorAngle - gap;
+    const x1 = cx + r * Math.cos(a1);
+    const y1 = cy + r * Math.sin(a1);
+    const x2 = cx + r * Math.cos(a2);
+    const y2 = cy + r * Math.sin(a2);
+    const color = CHART_COLORS[i % CHART_COLORS.length];
+
+    paths += `<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 0,1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${color}" stroke="#fff" stroke-width="1.2"/>`;
+
+    const pct = (item.count / total * 100).toFixed(1);
+    legend += `<div class="pie-legend-item"><span class="pie-dot" style="background:${color}"></span>${esc(item[nameField])} <span class="pie-value">${item.count} (${pct}%)</span></div>`;
+  });
+
+  return `<div class="pie-chart-wrapper">
+    <svg viewBox="0 0 160 160" class="pie-svg">${paths}</svg>
+    <div class="pie-legend">${legend}</div>
   </div>`;
 }
 
@@ -1068,7 +1150,7 @@ async function openUserMgmt() {
 }
 
 async function adminDeleteUser(id) {
-  if (!confirm('确定删除此用户？')) return;
+  if (!await showConfirm('确定删除此用户？')) return;
   try {
     const res = await api.deleteAdminUser(id);
     if (res.error) { toast(res.error); return; }

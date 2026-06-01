@@ -60,6 +60,7 @@
         <button id="searchBtn" class="btn btn-search"><span class="icon">🔍</span> 搜索</button>
       </div>
       <div class="action-group">
+        <button id="sidebarToggleBtnMobile" class="btn btn-stats"><span class="icon">📂</span> 分类</button>
         <button id="statsBtn" class="btn btn-stats"><span class="icon">📊</span> 统计</button>
         <button id="imageSearchBtn" class="btn btn-image"><span class="icon">🖼️</span> 上传图片检索</button>
         <span id="gwoIndicator" class="gwo-indicator hidden" title="灰狼优化权重">🐺 <span id="gwoText">H:-- V:-- D:-- A:--</span></span>
@@ -90,7 +91,10 @@
       <aside class="sidebar" id="taxonomySidebar">
         <div class="sidebar-header">
           <h3>分类索引</h3>
-          <button id="clearTaxonomy" class="btn-clear-filter hidden">清除筛选</button>
+          <div class="sidebar-header-actions">
+            <button id="clearTaxonomy" class="btn-clear-filter hidden">清除筛选</button>
+            <button id="sidebarToggleBtn" class="btn-sidebar-toggle" title="收起侧栏">◀</button>
+          </div>
         </div>
         <div class="sidebar-tabs">
           <button class="sidebar-tab active" data-tab="taxonomy">分类</button>
