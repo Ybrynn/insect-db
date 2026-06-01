@@ -287,8 +287,34 @@
     </div>
   </div>
 
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal confirm-modal">
+      <div class="modal-header">
+        <h2>确认</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-cancel" id="confirmCancel">取消</button>
+        <button type="button" class="btn btn-submit" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+          console.log('✅ Service Worker 已注册');
+        }).catch(function(err) {
+          console.log('⚠️ Service Worker 注册失败:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
