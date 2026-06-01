@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>昆虫信息数据库</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-box">
+      <h2>昆虫信息数据库</h2>
+      <p class="auth-subtitle">天水市果树研究所昆虫标本电子档案管理系统</p>
+      <div id="loginForm">
+        <div class="form-group">
+          <input type="text" id="loginUsername" placeholder="用户名">
+        </div>
+        <div class="form-group">
+          <input type="password" id="loginPassword" placeholder="密码">
+        </div>
+        <button id="loginBtn" class="btn btn-submit" style="width:100%">登录</button>
+        <p class="auth-link">没有账号？<a href="#" id="showRegisterBtn">注册</a></p>
+        <p class="auth-error" id="authError"></p>
+      </div>
+      <div id="registerForm" class="hidden">
+        <div class="form-group">
+          <input type="text" id="registerUsername" placeholder="用户名（至少3个字符）">
+        </div>
+        <div class="form-group">
+          <input type="password" id="registerPassword" placeholder="密码（至少6个字符）">
+        </div>
+        <div class="form-group">
+          <input type="password" id="registerConfirm" placeholder="确认密码">
+        </div>
+        <button id="registerBtn" class="btn btn-submit" style="width:100%">注册</button>
+        <p class="auth-link">已有账号？<a href="#" id="showLoginBtn">登录</a></p>
+        <p class="auth-error" id="authError2"></p>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-inner">
+      <h1>昆虫信息数据库</h1>
+      <p class="subtitle">天水市果树研究所昆虫标本电子档案管理系统</p>
+    </div>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="search-group">
+        <input type="text" id="searchInput" placeholder="按名称/学名/别名搜索...">
+        <button id="searchBtn" class="btn btn-search"><span class="icon">🔍</span> 搜索</button>
+      </div>
+      <div class="action-group">
+        <button id="statsBtn" class="btn btn-stats"><span class="icon">📊</span> 统计</button>
+        <button id="imageSearchBtn" class="btn btn-image"><span class="icon">🖼️</span> 上传图片检索</button>
+        <span id="gwoIndicator" class="gwo-indicator hidden" title="灰狼优化权重">🐺 <span id="gwoText">H:-- V:-- D:-- A:--</span></span>
+        <button id="userMgmtBtn" class="btn btn-admin hidden"><span class="icon">👥</span> 用户管理</button>
+        <button id="addBtn" class="btn btn-add"><span class="icon">＋</span> 添加标本</button>
+        <button id="logoutBtn" class="btn btn-logout hidden">注销</button>
+      </div>
+    </div>
+
+    <div id="imageSearchPanel" class="image-search-panel hidden">
+      <div class="panel-header">
+        <h3>图片检索</h3>
+        <button id="closeImageSearch" class="btn-close">✕</button>
+      </div>
+      <div class="panel-body">
+        <div class="upload-section">
+          <label class="btn btn-upload">
+            <span class="icon">📁</span> 选择图片
+            <input type="file" id="imageSearchFile" accept="image/*">
+          </label>
+          <div id="searchPreview" class="preview-area"></div>
+        </div>
+        <button id="startSearchBtn" class="btn btn-search hidden">开始检索</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar" id="taxonomySidebar">
+        <div class="sidebar-header">
+          <h3>分类索引</h3>
+          <button id="clearTaxonomy" class="btn-clear-filter hidden">清除筛选</button>
+        </div>
+        <div class="sidebar-tabs">
+          <button class="sidebar-tab active" data-tab="taxonomy">分类</button>
+          <button class="sidebar-tab" data-tab="hosts">寄主</button>
+          <button class="sidebar-tab" data-tab="damages">危害</button>
+          <button class="sidebar-tab" data-tab="categories">类别</button>
+        </div>
+        <div class="sidebar-body" id="taxonomyBody">
+          <div class="taxonomy-loading">加载中...</div>
+        </div>
+      </aside>
+
+      <div class="content">
+        <div id="currentFilter" class="current-filter hidden">
+          <span class="filter-label">当前筛选：</span>
+          <span id="filterText" class="filter-text"></span>
+          <button id="clearFilterBtn" class="btn-clear-filter">✕ 清除</button>
+        </div>
+
+        <div id="loading" class="loading hidden">
+          <div class="spinner"></div>
+          <span>加载中...</span>
+        </div>
+
+        <div id="cardGrid" class="card-grid"></div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <div class="empty-icon">🦗</div>
+          <p>暂无数据，请点击"添加标本"录入</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">添加标本</h2>
+        <button class="btn-close" onclick="closeModal()">✕</button>
+      </div>
+      <form id="insectForm" class="modal-body">
+        <input type="hidden" id="editId" value="">
+        <div class="form-row">
+          <div class="form-group">
+            <label>种名 *</label>
+            <input type="text" id="name" required placeholder="如：苹果蠹蛾">
+          </div>
+          <div class="form-group">
+            <label>学名</label>
+            <input type="text" id="scientificName" placeholder="如：Cydia pomonella">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>别名</label>
+            <input type="text" id="aliasName" placeholder="俗称/又名">
+          </div>
+          <div class="form-group">
+            <label>寄主植物</label>
+            <input type="text" id="hostPlant" placeholder="如：苹果、梨">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>危害类型</label>
+            <input type="text" id="damageType" placeholder="如：蛀果、食叶">
+          </div>
+          <div class="form-group">
+            <label>标本图片</label>
+            <input type="file" id="image" accept="image/*">
+            <div id="imagePreview" class="preview-area"></div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>目 (Order)</label>
+            <input type="text" id="insectOrder" placeholder="如：鳞翅目">
+          </div>
+          <div class="form-group">
+            <label>科 (Family)</label>
+            <input type="text" id="family" placeholder="如：卷蛾科">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>属 (Genus)</label>
+            <input type="text" id="genus" placeholder="如：苹果蠹蛾属">
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>类别</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="category" value="害虫"> 害虫</label>
+              <label class="radio-label"><input type="radio" name="category" value="天敌"> 天敌</label>
+              <label class="radio-label"><input type="radio" name="category" value="" checked> 未指定</label>
+            </div>
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>在库情况</label>
+            <div class="radio-group">
+              <label class="radio-label"><input type="radio" name="status" value="在库" checked> 在库</label>
+              <label class="radio-label"><input type="radio" name="status" value="不在库"> 不在库</label>
+              <label class="radio-label"><input type="radio" name="status" value="外借"> 外借</label>
+            </div>
+          </div>
+          <div class="form-group"></div>
+        </div>
+        <div class="form-group">
+          <label>形态特征</label>
+          <textarea id="morphology" rows="3" placeholder="描述成虫/幼虫的形态特征..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>生活习性</label>
+          <textarea id="habit" rows="3" placeholder="描述生活史、发生规律..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>详细描述</label>
+          <textarea id="description" rows="3" placeholder="其他补充说明..."></textarea>
+        </div>
+        <div class="form-group">
+          <div class="custom-fields-header">
+            <label>自定义项目</label>
+            <button type="button" id="manageCustomFieldsBtn" class="btn btn-sm">管理</button>
+          </div>
+          <div id="customFieldsContainer"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-cancel" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn btn-submit">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="detailModal" class="modal-overlay hidden">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2 id="detailTitle">标本详情</h2>
+        <button class="btn-close" onclick="closeDetail()">✕</button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div id="statsModal" class="modal-overlay hidden">
+    <div class="modal modal-lg modal-stats">
+      <div class="modal-header">
+        <h2>数据统计</h2>
+        <button class="btn-close" onclick="closeStats()">✕</button>
+      </div>
+      <div class="modal-body" id="statsBody">
+        <div class="loading"><div class="spinner"></div><span>加载中...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="customFieldsModal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>管理自定义项目</h2>
+        <button class="btn-close" onclick="closeCustomFieldsModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group" style="flex:1">
+            <input type="text" id="newCustomFieldName" placeholder="输入自定义项目名称">
+          </div>
+          <div class="form-group">
+            <button id="addCustomFieldBtn" class="btn btn-submit">添加</button>
+          </div>
+        </div>
+        <div id="customFieldsList"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-cancel" onclick="closeCustomFieldsModal()">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="userMgmtModal" class="modal-overlay hidden">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h2>用户管理</h2>
+        <button class="btn-close" onclick="closeUserMgmt()">✕</button>
+      </div>
+      <div class="modal-body" id="userMgmtBody">
+        <div class="loading"><div class="spinner"></div><span>加载中...</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

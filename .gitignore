@@ -1,0 +1,8 @@
+node_modules/
+data/
+.env
+*.bat
+*.vbs
+*.exe
+1779*.jpg
+1779*.JPG
