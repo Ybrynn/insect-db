@@ -50,9 +50,6 @@ async function initDb() {
   if (!cols.includes('category')) db.run(`ALTER TABLE insects ADD COLUMN category TEXT DEFAULT ''`);
   if (!cols.includes('genus')) db.run(`ALTER TABLE insects ADD COLUMN genus TEXT DEFAULT ''`);
   if (!cols.includes('status')) db.run(`ALTER TABLE insects ADD COLUMN status TEXT DEFAULT '在库'`);
-  const userCols = db.exec(`PRAGMA table_info(users)`).flatMap(r => r.values).map(v => v[1]);
-  if (!userCols.includes('can_edit')) db.run(`ALTER TABLE users ADD COLUMN can_edit INTEGER DEFAULT 0`);
-  if (!userCols.includes('can_upload')) db.run(`ALTER TABLE users ADD COLUMN can_upload INTEGER DEFAULT 0`);
   db.run(`
     CREATE TABLE IF NOT EXISTS custom_fields (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,6 +79,9 @@ async function initDb() {
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     )
   `);
+  const userCols = db.exec(`PRAGMA table_info(users)`).flatMap(r => r.values).map(v => v[1]);
+  if (!userCols.includes('can_edit')) db.run(`ALTER TABLE users ADD COLUMN can_edit INTEGER DEFAULT 0`);
+  if (!userCols.includes('can_upload')) db.run(`ALTER TABLE users ADD COLUMN can_upload INTEGER DEFAULT 0`);
   const adminExists = queryOne(`SELECT id FROM users WHERE username = 'admin'`);
   if (!adminExists) {
     const salt = crypto.randomBytes(16).toString('hex');
