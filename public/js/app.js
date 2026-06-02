@@ -6,6 +6,16 @@ let lastQueryHash = '';
 let lastSearchResultIds = new Set();
 let currentUser = null;
 
+function togglePwd(btn) {
+  const input = btn.parentElement.querySelector('input');
+  const isPwd = input.type === 'password';
+  input.type = isPwd ? 'text' : 'password';
+  btn.innerHTML = isPwd
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  btn.setAttribute('aria-label', isPwd ? '隐藏密码' : '显示密码');
+}
+
 function authHeaders() {
   const t = localStorage.getItem('auth_token');
   return t ? { 'x-auth-token': t } : {};
@@ -130,6 +140,10 @@ const api = {
   async deleteAdminUser(id) {
     const r = await fetch(`/api/admin/users/${id}`, { method: 'DELETE', headers: { ...authHeaders() } });
     return r.json();
+  },
+  async updateUserPerm(id, body) {
+    const r = await fetch(`/api/admin/users/${id}/permissions`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    return r.json();
   }
 };
 
@@ -155,7 +169,8 @@ function hideAuth() {
 
 function updateUIForRole() {
   const isAdmin = currentUser && currentUser.role === 'admin';
-  document.getElementById('addBtn').classList.toggle('hidden', !isAdmin);
+  const canUpload = currentUser && (isAdmin || currentUser.can_upload);
+  document.getElementById('addBtn').classList.toggle('hidden', !canUpload);
   document.getElementById('userMgmtBtn').classList.toggle('hidden', !isAdmin);
   document.getElementById('logoutBtn').classList.remove('hidden');
   // card edit/delete handled in renderCards
@@ -273,6 +288,7 @@ function renderCards(data) {
   const grid = document.getElementById('cardGrid');
   const empty = document.getElementById('emptyState');
   const isAdmin = currentUser && currentUser.role === 'admin';
+  const canEdit = currentUser && (isAdmin || currentUser.can_edit);
 
   if (!data || data.length === 0) {
     grid.innerHTML = '';
@@ -299,9 +315,9 @@ function renderCards(data) {
           ${item.damage_type ? `<span>⚠️ 危害：${esc(item.damage_type)}</span>` : ''}
         </div>
       </div>
-      ${isAdmin ? `<div class="card-actions">
+      ${canEdit ? `<div class="card-actions">
         <button class="btn btn-edit" onclick="event.stopPropagation(); openEdit(${item.id})">编辑</button>
-        <button class="btn btn-delete" onclick="event.stopPropagation(); confirmDelete(${item.id})">删除</button>
+        ${isAdmin ? `<button class="btn btn-delete" onclick="event.stopPropagation(); confirmDelete(${item.id})">删除</button>` : ''}
       </div>` : ''}
       ${item.similarity !== undefined ? `<div style="padding:0 14px 10px"><span class="simBdge">相似度 ${(item.similarity * 100).toFixed(0)}%</span></div>` : ''}
     </div>
@@ -581,18 +597,12 @@ const sidebar = document.getElementById('taxonomySidebar');
 document.getElementById('sidebarToggleBtn').addEventListener('click', () => {
   sidebar.classList.toggle('collapsed');
   const btn = document.getElementById('sidebarToggleBtn');
-  btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
   btn.title = sidebar.classList.contains('collapsed') ? '展开侧栏' : '收起侧栏';
 });
 document.getElementById('sidebarToggleBtnMobile').addEventListener('click', () => {
   sidebar.classList.toggle('collapsed');
-  if (sidebar.classList.contains('collapsed')) {
-    document.getElementById('sidebarToggleBtn').textContent = '▶';
-    document.getElementById('sidebarToggleBtn').title = '展开侧栏';
-  } else {
-    document.getElementById('sidebarToggleBtn').textContent = '◀';
-    document.getElementById('sidebarToggleBtn').title = '收起侧栏';
-  }
+  const btn = document.getElementById('sidebarToggleBtn');
+  btn.title = sidebar.classList.contains('collapsed') ? '展开侧栏' : '收起侧栏';
 });
 
 // Sidebar Tabs
@@ -1058,9 +1068,9 @@ function renderStats(stats) {
 }
 
 const CHART_COLORS = [
-  '#c08080', '#dbb0a8', '#80b880', '#a8d0a8',
-  '#68b098', '#88c8b4', '#c888a8', '#b498c0',
-  '#78b8a0', '#d4a888', '#98b080', '#c8a898'
+  '#5cc490', '#8a7db8', '#f0ad20', '#cc8a8a',
+  '#6cc4a0', '#b8a0cc', '#d8b090', '#ace0b8',
+  '#e0b8b0', '#a0c090', '#d098b0', '#3daa72'
 ];
 
 function renderBarChart(data, nameField, max) {
@@ -1131,13 +1141,15 @@ async function openUserMgmt() {
   try {
     const users = await api.getAdminUsers();
     body.innerHTML = `<table class="user-table">
-      <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>注册时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>用户名</th><th>角色</th><th>编辑</th><th>上传</th><th>注册时间</th><th>操作</th></tr></thead>
       <tbody>
         ${users.map(u => `
           <tr>
             <td>${u.id}</td>
             <td>${esc(u.username)}</td>
             <td>${u.role === 'admin' ? '管理员' : '普通用户'}</td>
+            <td>${u.role !== 'admin' ? `<label class="toggle-switch"><input type="checkbox" ${u.can_edit ? 'checked' : ''} onchange="setPerm(${u.id},'can_edit',this.checked)"><span class="toggle-slider"></span></label>` : '-'}</td>
+            <td>${u.role !== 'admin' ? `<label class="toggle-switch"><input type="checkbox" ${u.can_upload ? 'checked' : ''} onchange="setPerm(${u.id},'can_upload',this.checked)"><span class="toggle-slider"></span></label>` : '-'}</td>
             <td>${esc(u.created_at)}</td>
             <td>${u.role !== 'admin' ? `<button class="btn btn-sm btn-delete" onclick="adminDeleteUser(${u.id})">删除</button>` : '-'}</td>
           </tr>
@@ -1146,6 +1158,19 @@ async function openUserMgmt() {
     </table>`;
   } catch (err) {
     body.innerHTML = `<div class="taxonomy-loading">${err.message}</div>`;
+  }
+}
+
+async function setPerm(id, field, val) {
+  const body = {};
+  if (field === 'can_edit') body.can_edit = val;
+  if (field === 'can_upload') body.can_upload = val;
+  try {
+    await api.updateUserPerm(id, body);
+    toast('权限更新成功');
+  } catch (err) {
+    toast('权限更新失败');
+    openUserMgmt();
   }
 }
 

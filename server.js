@@ -50,6 +50,9 @@ async function initDb() {
   if (!cols.includes('category')) db.run(`ALTER TABLE insects ADD COLUMN category TEXT DEFAULT ''`);
   if (!cols.includes('genus')) db.run(`ALTER TABLE insects ADD COLUMN genus TEXT DEFAULT ''`);
   if (!cols.includes('status')) db.run(`ALTER TABLE insects ADD COLUMN status TEXT DEFAULT '在库'`);
+  const userCols = db.exec(`PRAGMA table_info(users)`).flatMap(r => r.values).map(v => v[1]);
+  if (!userCols.includes('can_edit')) db.run(`ALTER TABLE users ADD COLUMN can_edit INTEGER DEFAULT 0`);
+  if (!userCols.includes('can_upload')) db.run(`ALTER TABLE users ADD COLUMN can_upload INTEGER DEFAULT 0`);
   db.run(`
     CREATE TABLE IF NOT EXISTS custom_fields (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +77,8 @@ async function initDb() {
       password_hash TEXT NOT NULL,
       salt TEXT NOT NULL,
       role TEXT DEFAULT 'user',
+      can_edit INTEGER DEFAULT 0,
+      can_upload INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT (datetime('now','localtime'))
     )
   `);
@@ -246,7 +251,7 @@ function gwoOptimize(queryHash, posHash, allHashes) {
   console.log(`[GWO] #${gwoIterCount} H=${gwoWeights[0].toFixed(3)} V=${gwoWeights[1].toFixed(3)} D=${gwoWeights[2].toFixed(3)} A=${gwoWeights[3].toFixed(3)}`);
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false, lastModified: false }));
 app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 app.use(express.json());
 
@@ -285,9 +290,9 @@ app.post('/api/auth/login', (req, res) => {
     if (hash !== user.password_hash) return res.status(401).json({ error: '用户名或密码错误' });
 
     const token = crypto.randomBytes(32).toString('hex');
-    sessions.set(token, { id: user.id, username: user.username, role: user.role });
+    sessions.set(token, { id: user.id, username: user.username, role: user.role, can_edit: !!user.can_edit, can_upload: !!user.can_upload });
 
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role } });
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role, can_edit: !!user.can_edit, can_upload: !!user.can_upload } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -317,10 +322,36 @@ function adminOnly(req, res, next) {
   next();
 }
 
+function canEdit(req, res, next) {
+  if (req.user.role === 'admin' || req.user.can_edit) return next();
+  res.status(403).json({ error: '权限不足，需要编辑权限' });
+}
+
+function canUpload(req, res, next) {
+  if (req.user.role === 'admin' || req.user.can_upload) return next();
+  res.status(403).json({ error: '权限不足，需要上传标本权限' });
+}
+
 app.get('/api/admin/users', adminOnly, (req, res) => {
   try {
-    const users = query(`SELECT id, username, role, created_at FROM users ORDER BY id`);
+    const users = query(`SELECT id, username, role, can_edit, can_upload, created_at FROM users ORDER BY id`);
     res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/users/:id/permissions', adminOnly, (req, res) => {
+  try {
+    const user = queryOne(`SELECT * FROM users WHERE id = ?`, [req.params.id]);
+    if (!user) return res.status(404).json({ error: '用户不存在' });
+    if (user.role === 'admin') return res.status(400).json({ error: '不能修改管理员权限' });
+    const { can_edit, can_upload } = req.body;
+    execute(`UPDATE users SET can_edit=?, can_upload=? WHERE id=?`, [can_edit ? 1 : 0, can_upload ? 1 : 0, req.params.id]);
+    for (const [t, s] of sessions) {
+      if (s.id === user.id) { s.can_edit = !!can_edit; s.can_upload = !!can_upload; }
+    }
+    res.json({ message: '权限更新成功' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -568,7 +599,7 @@ app.get('/api/insects/:id', (req, res) => {
   }
 });
 
-app.post('/api/insects', adminOnly, upload.single('image'), async (req, res) => {
+app.post('/api/insects', canUpload, upload.single('image'), async (req, res) => {
   try {
     const { name, scientific_name, alias_name, description, host_plant, damage_type, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
     if (!name) return res.status(400).json({ error: '名称不能为空' });
@@ -602,7 +633,7 @@ app.post('/api/insects', adminOnly, upload.single('image'), async (req, res) => 
   }
 });
 
-app.put('/api/insects/:id', adminOnly, upload.single('image'), async (req, res) => {
+app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) => {
   try {
     const { name, scientific_name, alias_name, description, host_plant, damage_type, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
     if (!name) return res.status(400).json({ error: '名称不能为空' });
