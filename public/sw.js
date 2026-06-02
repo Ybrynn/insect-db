@@ -1,5 +1,5 @@
 // 昆虫信息数据库 - Service Worker (PWA)
-const CACHE_NAME = 'insect-db-v1';
+const CACHE_NAME = 'insect-db-v2';
 const urlsToCache = [
   '/',
   '/index.html',
