@@ -1,4 +1,4 @@
-﻿const crypto = require('crypto');
+const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 
@@ -162,13 +162,13 @@ app.get('/api/insects', (req, res) => {
 
 app.get('/api/taxonomy', (req, res) => {
   try {
-    const orders = query(`SELECT DISTINCT insect_order FROM insects WHERE insect_order != '' ORDER BY insect_order`);
+    const orders = query(`SELECT insect_order, COUNT(*) as cnt FROM insects WHERE insect_order != '' GROUP BY insect_order ORDER BY cnt DESC, CASE WHEN insect_order = '苹果' THEN 0 ELSE 1 END, insect_order`);
     const result = {};
     for (const ord of orders.map(r => r.insect_order)) {
-      const families = query(`SELECT DISTINCT family FROM insects WHERE insect_order = ? AND family != '' ORDER BY family`, [ord]);
+      const families = query(`SELECT family, COUNT(*) as cnt FROM insects WHERE insect_order = ? AND family != '' GROUP BY family ORDER BY cnt DESC, CASE WHEN family = '苹果' THEN 0 ELSE 1 END, family`, [ord]);
       const famObj = {};
       for (const f of families.map(r => r.family)) {
-        const genera = query(`SELECT DISTINCT genus FROM insects WHERE insect_order = ? AND family = ? AND genus != '' ORDER BY genus`, [ord, f]);
+        const genera = query(`SELECT genus, COUNT(*) as cnt FROM insects WHERE insect_order = ? AND family = ? AND genus != '' GROUP BY genus ORDER BY cnt DESC, CASE WHEN genus = '苹果' THEN 0 ELSE 1 END, genus`, [ord, f]);
         famObj[f] = genera.map(r => r.genus);
       }
       result[ord] = famObj;
@@ -181,15 +181,18 @@ app.get('/api/taxonomy', (req, res) => {
 
 app.get('/api/taxonomy/hosts', (req, res) => {
   try {
-    const rows = query(`SELECT DISTINCT host_plant FROM insects WHERE host_plant != '' ORDER BY host_plant`);
-    const all = [];
+    const rows = query(`SELECT host_plant FROM insects WHERE host_plant != ''`);
+    const hostCounts = {};
     for (const r of rows) {
       const parts = r.host_plant.split(/[、,，\/\\]/).map(s => s.trim()).filter(Boolean);
-      for (const p of parts) {
-        if (!all.includes(p)) all.push(p);
-      }
+      for (const p of parts) hostCounts[p] = (hostCounts[p] || 0) + 1;
     }
-    all.sort();
+    const all = Object.keys(hostCounts).sort((a, b) => {
+      if (hostCounts[b] !== hostCounts[a]) return hostCounts[b] - hostCounts[a];
+      if (a === '苹果') return -1;
+      if (b === '苹果') return 1;
+      return a.localeCompare(b);
+    });
     res.json(all);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -198,16 +201,8 @@ app.get('/api/taxonomy/hosts', (req, res) => {
 
 app.get('/api/taxonomy/damages', (req, res) => {
   try {
-    const rows = query(`SELECT DISTINCT damage_type FROM insects WHERE damage_type != '' ORDER BY damage_type`);
-    const all = [];
-    for (const r of rows) {
-      const parts = r.damage_type.split(/[、,，\/\\]/).map(s => s.trim()).filter(Boolean);
-      for (const p of parts) {
-        if (!all.includes(p)) all.push(p);
-      }
-    }
-    all.sort();
-    res.json(all);
+    const rows = query(`SELECT damage_type, COUNT(*) as cnt FROM insects WHERE damage_type != '' GROUP BY damage_type ORDER BY cnt DESC, CASE WHEN damage_type = '苹果' THEN 0 ELSE 1 END, damage_type`);
+    res.json(rows.map(r => r.damage_type));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -215,7 +210,7 @@ app.get('/api/taxonomy/damages', (req, res) => {
 
 app.get('/api/taxonomy/categories', (req, res) => {
   try {
-    const rows = query(`SELECT DISTINCT category FROM insects WHERE category != '' ORDER BY category`);
+    const rows = query(`SELECT category, COUNT(*) as cnt FROM insects WHERE category != '' GROUP BY category ORDER BY cnt DESC, CASE WHEN category = '苹果' THEN 0 ELSE 1 END, category`);
     res.json(rows.map(r => r.category));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -349,7 +344,7 @@ app.get('/api/insects/:id', (req, res) => {
 
 app.post('/api/insects', canUpload, upload.single('image'), async (req, res) => {
   try {
-    const { name, scientific_name, alias_name, description, host_plant, damage_type, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
+    const { name, scientific_name, alias_name, description, host_plant, damage_type, prey_insect, predator_stage, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
     if (!name) return res.status(400).json({ error: '名称不能为空' });
 
     let image_path = '';
@@ -360,9 +355,9 @@ app.post('/api/insects', canUpload, upload.single('image'), async (req, res) => 
     }
 
     execute(
-      `INSERT INTO insects (name, scientific_name, alias_name, description, host_plant, damage_type, morphology, habit, family, insect_order, genus, category, status, image_path, image_hash)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', image_path, image_hash]
+      `INSERT INTO insects (name, scientific_name, alias_name, description, host_plant, damage_type, prey_insect, predator_stage, morphology, habit, family, insect_order, genus, category, status, image_path, image_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', prey_insect || '', predator_stage || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', image_path, image_hash]
     );
 
     const last = queryOne(`SELECT MAX(id) as id FROM insects`);
@@ -393,8 +388,8 @@ app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) =>
       const image_path = '/uploads/' + req.file.filename;
       const image_hash = await computeHash(req.file.path);
       execute(
-        `UPDATE insects SET name=?, scientific_name=?, alias_name=?, description=?, host_plant=?, damage_type=?, morphology=?, habit=?, family=?, insect_order=?, genus=?, category=?, status=?, image_path=?, image_hash=?, updated_at=datetime('now','localtime') WHERE id=?`,
-        [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', image_path, image_hash, req.params.id]
+        `UPDATE insects SET name=?, scientific_name=?, alias_name=?, description=?, host_plant=?, damage_type=?, prey_insect=?, predator_stage=?, morphology=?, habit=?, family=?, insect_order=?, genus=?, category=?, status=?, image_path=?, image_hash=?, updated_at=datetime('now','localtime') WHERE id=?`,
+        [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', prey_insect || '', predator_stage || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', image_path, image_hash, req.params.id]
       );
       if (existing.image_path) {
         const oldPath = path.join(DATA_DIR, existing.image_path.replace(/^\//, ''));
@@ -402,8 +397,8 @@ app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) =>
       }
     } else {
       execute(
-        `UPDATE insects SET name=?, scientific_name=?, alias_name=?, description=?, host_plant=?, damage_type=?, morphology=?, habit=?, family=?, insect_order=?, genus=?, category=?, status=?, updated_at=datetime('now','localtime') WHERE id=?`,
-        [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', req.params.id]
+        `UPDATE insects SET name=?, scientific_name=?, alias_name=?, description=?, host_plant=?, damage_type=?, prey_insect=?, predator_stage=?, morphology=?, habit=?, family=?, insect_order=?, genus=?, category=?, status=?, updated_at=datetime('now','localtime') WHERE id=?`,
+        [name, scientific_name || '', alias_name || '', description || '', host_plant || '', damage_type || '', prey_insect || '', predator_stage || '', morphology || '', habit || '', family || '', insect_order || '', genus || '', category || '', status || '在库', req.params.id]
       );
     }
 

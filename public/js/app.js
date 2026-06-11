@@ -360,6 +360,16 @@ function shortenHost(val) {
   return esc(parts.slice(0, 5).join('、') + '等');
 }
 
+function toggleCategoryFields() {
+  const cat = document.querySelector('input[name="category"]:checked')?.value;
+  const row = document.querySelector('.form-row.predator-only');
+  if (!row) return;
+  const isPest = cat === '害虫';
+  const isPredator = cat === '天敌';
+  document.querySelectorAll('.pest-only').forEach(e => e.style.display = isPest ? '' : 'none');
+  row.style.display = isPredator ? '' : 'none';
+}
+
 function openModal(title, data) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalOverlay').classList.remove('hidden');
@@ -378,6 +388,13 @@ function openModal(title, data) {
     document.getElementById('genus').value = data.genus || '';
     document.getElementById('morphology').value = data.morphology || '';
     document.getElementById('habit').value = data.habit || '';
+    document.getElementById('preyInsect').value = data.prey_insect || '';
+    if (data.predator_stage) {
+      const stages = data.predator_stage.split(',');
+      document.querySelectorAll('input[name="predator_stage"]').forEach(cb => {
+        cb.checked = stages.includes(cb.value);
+      });
+    }
     if (data.image_path) {
       document.getElementById('imagePreview').innerHTML = `<img src="${data.image_path}" alt="preview">`;
     } else {
@@ -398,8 +415,13 @@ function closeModal() {
   editingId = null;
 }
 
+document.querySelectorAll('input[name="category"]').forEach(r => {
+  r.addEventListener('change', toggleCategoryFields);
+});
+
 document.getElementById('addBtn').addEventListener('click', () => {
   openModal('添加标本');
+  setTimeout(toggleCategoryFields, 50);
 });
 
 document.getElementById('insectForm').addEventListener('submit', async (e) => {
@@ -417,6 +439,9 @@ document.getElementById('insectForm').addEventListener('submit', async (e) => {
   fd.append('morphology', document.getElementById('morphology').value.trim());
   fd.append('habit', document.getElementById('habit').value.trim());
   fd.append('category', document.querySelector('input[name="category"]:checked')?.value || '');
+  fd.append('prey_insect', document.getElementById('preyInsect').value.trim());
+  const predatorStages = [...document.querySelectorAll('input[name="predator_stage"]:checked')].map(cb => cb.value).join(',');
+  fd.append('predator_stage', predatorStages);
   fd.append('status', document.querySelector('input[name="status"]:checked')?.value || '在库');
 
   const img = document.getElementById('image');

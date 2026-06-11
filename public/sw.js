@@ -1,8 +1,9 @@
-﻿// 昆虫信息数据库 - Service Worker (PWA)
-const CACHE_NAME = 'insect-db-v6';
+// 昆虫信息数据库 - Service Worker (PWA)
+const CACHE_NAME = 'insect-db-v7';
 
 // 安装：预缓存核心文件
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(['/icon-192.png', '/icon-512.png', '/favicon.ico']);
@@ -12,6 +13,8 @@ self.addEventListener('install', (event) => {
 
 // 激活：清理旧缓存
 self.addEventListener('activate', (event) => {
+  self.registration.unregister();
+  clients.claim();
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
