@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 
 function registerRoutes(app, deps) {
-  const { query, queryOne, execute, logOperation, saveDb, DATA_DIR, upload, computeHash, gwoOptimize, hashComponents, weightedSimilarity, gwoWeights, gwoIterCount, hammingDistance, hashBits, adminOnly, canEdit, canUpload } = deps;
+  const { query, queryOne, execute, logOperation, saveDb, DATA_DIR, upload, computeHash, gwoOptimize, hashComponents, weightedSimilarity, gwoWeights, gwoIterCount, hammingDistance, hashBits, adminOnly, canEdit, canUpload, verifyToken, createToken } = deps;
 
 app.post('/api/auth/register', (req, res) => {
   try {
