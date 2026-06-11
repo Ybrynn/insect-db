@@ -2,18 +2,25 @@ const express = require('express');
 const path = require('path');
 const { initDb, query, queryOne, execute, logOperation, saveDb, getDb, DATA_DIR } = require('./lib/db');
 const { storage, upload, computeHash, hammingDistance, hashBits, gwoWeights, gwoIterCount, hashComponents, weightedSimilarity, gwoOptimize, migrateHashes } = require('./lib/image');
-const { createToken, verifyToken, adminOnly, canEdit, canUpload } = require('./lib/auth');
+const { createToken, verifyToken, adminOnly, canEdit, canUpload, authLimiter, apiWriteLimiter, uploadLimiter } = require('./lib/auth');
 const registerRoutes = require('./routes/api');
 
 const app = express();
 const PORT = parseInt(process.env.PORT) || 3000;
 
-// ── Middleware ──
+// ── Static files ──
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false, lastModified: false }));
 app.use('/uploads', express.static(path.join(DATA_DIR, 'uploads')));
 app.use(express.json());
 
-// ── Register all API routes ──
+// ── Rate limiting ──
+app.use('/api/auth', authLimiter);
+app.use('/api/search-by-image', uploadLimiter);
+app.post('/api/insects', apiWriteLimiter);
+app.put('/api/insects/:id', apiWriteLimiter);
+app.delete('/api/insects/:id', apiWriteLimiter);
+
+// ── API routes ──
 registerRoutes(app, {
   query, queryOne, execute, logOperation, saveDb, DATA_DIR,
   upload, computeHash, gwoOptimize, hashComponents, weightedSimilarity,
@@ -40,7 +47,6 @@ initDb().then(async () => {
   await migrateHashes();
   app.listen(PORT, '0.0.0.0', () => {
     console.log('昆虫信息数据库已启动: http://localhost:' + PORT);
-    console.log('局域网访问: http://<本机IP>:' + PORT);
   });
 }).catch(err => {
   console.error('启动失败:', err);
