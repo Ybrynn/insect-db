@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+﻿const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
 
@@ -481,52 +481,52 @@ app.post('/api/search-feedback', (req, res) => {
 
 
 
-// ── CSV Export ──
-app.get('/api/export/csv', adminOnly, (req, res) => {
+﻿// ── XLSX Export ──
+app.get('/api/export/xlsx', adminOnly, (req, res) => {
   try {
-    const insects = query(`SELECT * FROM insects ORDER BY updated_at DESC`);
-    const customFields = query(`SELECT * FROM custom_fields ORDER BY id`);
+    const XLSX = require('xlsx');
+    const insects = query('SELECT * FROM insects ORDER BY updated_at DESC');
+    const customFields = query('SELECT * FROM custom_fields ORDER BY id');
     const fieldNames = customFields.map(f => f.name);
 
     const headers = [
-      'ID', 'ç§名', 'å­¦名', 'å«名', 'ç®', 'ç§', 'å±',
-      'å¯ä¸»æ¤ç©', 'å±å®³ç±»å', 'å®³è«/å¤©æ', 'å¨åºæåµ',
-      'å½¢æç¹å¾', 'çæ´»ä¹ æ§', 'è¯¦ç»æè¿°',
+      'ID', '种名', '学名', '别名', '目', '科', '属',
+      '寄主植物', '危害类型', '害虫/天敌', '在库情况',
+      '形态特征', '生活习性', '详细描述',
       ...fieldNames,
-      'åå»ºæ¶é´', 'æ´æ°æ¶é´'
+      '创建时间', '更新时间'
     ];
-    const esc = v => '"' + String(v || '').replace(/"/g, '""') + '"';
-    const csvRows = [headers.map(esc).join(',')];
 
+    const rows = [headers];
     for (const insect of insects) {
-      const customVals = query(
-        `SELECT cf.name, icv.value FROM insect_custom_values icv JOIN custom_fields cf ON icv.field_id=cf.id WHERE icv.insect_id=?`,
-        [insect.id]
-      );
+      const customVals = query('SELECT cf.name, icv.value FROM insect_custom_values icv JOIN custom_fields cf ON icv.field_id=cf.id WHERE icv.insect_id=?', [insect.id]);
       const customMap = {};
       for (const cv of customVals) customMap[cv.name] = cv.value;
 
-      const row = [
+      rows.push([
         insect.id, insect.name, insect.scientific_name, insect.alias_name,
         insect.insect_order, insect.family, insect.genus,
         insect.host_plant, insect.damage_type, insect.category, insect.status,
         insect.morphology, insect.habit, insect.description,
         ...fieldNames.map(fn => customMap[fn] || ''),
         insect.created_at, insect.updated_at
-      ];
-      csvRows.push(row.map(esc).join(','));
+      ]);
     }
 
-    const bom = '\uFEFF';
-    const csv = bom + csvRows.join('\n');
-    const filename = `insect-db-export-${new Date().toISOString().slice(0,10)}.csv`;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-    res.send(csv);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '昆虫数据');
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    const filename = 'insect-db-export-' + new Date().toISOString().slice(0,10) + '.xlsx';
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=' + encodeURIComponent(filename));
+    res.send(buf);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 }
 
 module.exports = registerRoutes;

@@ -1,4 +1,4 @@
-let allInsects = [];
+﻿let allInsects = [];
 let editingId = null;
 let currentSearchImage = null;
 let currentFilter = { order: '', family: '', genus: '', host_plant: '', damage_type: '', category: '' };
@@ -151,14 +151,14 @@ const api = {
     return r.json();
   },
   async exportCsv() {
-    const r = await fetch('/api/export/csv', { headers: authHeaders() });
+    const r = await fetch('/api/export/xlsx', { headers: authHeaders() });
     if (r.status === 401) handleUnauth();
     if (!r.ok) throw new Error('导出失败');
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `insect-db-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `insect-db-export-${new Date().toISOString().slice(0,10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
     toast('导出成功');
