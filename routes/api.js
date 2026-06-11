@@ -99,7 +99,7 @@ app.put('/api/admin/users/:id/permissions', adminOnly, (req, res) => {
     const { can_edit, can_upload } = req.body;
     execute(`UPDATE users SET can_edit=?, can_upload=? WHERE id=?`, [can_edit ? 1 : 0, can_upload ? 1 : 0, req.params.id]);
     // JWT is stateless - user permissions refresh on next login
-    res.json({ message: '权限更新成功' }); logOperation(req.user.id, req.user.username, 'update_permissions', 'user', req.params.id, JSON.stringify(body));
+    res.json({ message: '权限更新成功' }); logOperation(req.user.id, req.user.username, '修改权限', '用户', req.params.id, JSON.stringify(req.body));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -370,7 +370,7 @@ app.post('/api/insects', canUpload, upload.single('image'), async (req, res) => 
         if (val) execute(`INSERT INTO insect_custom_values (insect_id, field_id, value) VALUES (?, ?, ?)`, [last.id, fid, val]);
       }
     }
-    res.json({ id: last.id, message: '添加成功' }); logOperation(req.user.id, req.user.username, 'create', 'insect', last.id, name);
+    res.json({ id: last.id, message: '添加成功' }); logOperation(req.user.id, req.user.username, '创建', '昆虫', last.id, name);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -378,7 +378,7 @@ app.post('/api/insects', canUpload, upload.single('image'), async (req, res) => 
 
 app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) => {
   try {
-    const { name, scientific_name, alias_name, description, host_plant, damage_type, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
+    const { name, scientific_name, alias_name, description, host_plant, damage_type, prey_insect, predator_stage, morphology, habit, family, insect_order, genus, category, status, custom_values } = req.body;
     if (!name) return res.status(400).json({ error: '名称不能为空' });
 
     const existing = queryOne(`SELECT image_path FROM insects WHERE id = ?`, [req.params.id]);
@@ -412,7 +412,7 @@ app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) =>
         if (val) execute(`INSERT INTO insect_custom_values (insect_id, field_id, value) VALUES (?, ?, ?)`, [req.params.id, fid, val]);
       }
     }
-    res.json({ message: '更新成功' }); logOperation(req.user.id, req.user.username, 'update', 'insect', req.params.id, name);
+    res.json({ message: '更新成功' }); logOperation(req.user.id, req.user.username, '更新', '昆虫', req.params.id, name);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -420,7 +420,7 @@ app.put('/api/insects/:id', canEdit, upload.single('image'), async (req, res) =>
 
 app.delete('/api/insects/:id', adminOnly, (req, res) => {
   try {
-    const row = queryOne(`SELECT image_path FROM insects WHERE id = ?`, [req.params.id]);
+    const row = queryOne(`SELECT image_path, name FROM insects WHERE id = ?`, [req.params.id]);
     if (!row) return res.status(404).json({ error: '未找到' });
     if (row.image_path) {
       const p = path.join(DATA_DIR, row.image_path.replace(/^\//, ''));
@@ -428,7 +428,7 @@ app.delete('/api/insects/:id', adminOnly, (req, res) => {
     }
     execute(`DELETE FROM insect_custom_values WHERE insect_id = ?`, [req.params.id]);
     execute(`DELETE FROM insects WHERE id = ?`, [req.params.id]);
-    logOperation(req.user.id, req.user.username, 'delete', 'insect', req.params.id, row.name);
+    logOperation(req.user.id, req.user.username, '删除', '昆虫', req.params.id, row.name);
     res.json({ message: '删除成功' });
   } catch (err) {
     res.status(500).json({ error: err.message });
