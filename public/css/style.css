@@ -1,4 +1,4 @@
-*, *::before, *::after {
+﻿*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -1178,7 +1178,7 @@ main {
   }
   .action-group .btn .icon { font-size: 14px; }
   .gwo-indicator { font-size: 11px; padding: 2px 8px; }
-  .btn-logout { padding: 10px 8px; }
+  .btn-log { background: #6b7280; color: #fff; }.btn-log:hover { background: #4b5563; } .btn-export { background: #2563eb; color: #fff; }.btn-export:hover { background: #1d4ed8; } .btn-logout { padding: 10px 8px; }
 
   .card-grid {
     grid-template-columns: 1fr;
@@ -1365,7 +1365,7 @@ main {
   border-bottom: 1px solid var(--gray-100);
 }
 
-.btn-logout {
+.btn-log { background: #6b7280; color: #fff; }.btn-log:hover { background: #4b5563; } .btn-export { background: #2563eb; color: #fff; }.btn-export:hover { background: #1d4ed8; } .btn-logout {
   background: transparent;
   border: 1px solid var(--gray-200);
   color: var(--gray-500);

@@ -144,6 +144,24 @@ const api = {
   async updateUserPerm(id, body) {
     const r = await fetch(`/api/admin/users/${id}/permissions`, { method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     return r.json();
+  },
+  async getLogs(page, limit) {
+    const r = await fetch('/api/admin/logs?page=' + (page||1) + '&limit=' + (limit||50), { headers: authHeaders() });
+    if (r.status === 403) throw new Error('权限不足');
+    return r.json();
+  },
+  async exportCsv() {
+    const r = await fetch('/api/export/csv', { headers: authHeaders() });
+    if (r.status === 401) handleUnauth();
+    if (!r.ok) throw new Error('导出失败');
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `insect-db-export-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('导出成功');
   }
 };
 
@@ -173,6 +191,8 @@ function updateUIForRole() {
   document.getElementById('addBtn').classList.toggle('hidden', !canUpload);
   document.getElementById('userMgmtBtn').classList.toggle('hidden', !isAdmin);
   document.getElementById('logoutBtn').classList.remove('hidden');
+  document.getElementById('exportBtn').classList.toggle('hidden', !isAdmin);
+  document.getElementById('logBtn').classList.toggle('hidden', !isAdmin);
   // card edit/delete handled in renderCards
 }
 
@@ -258,6 +278,10 @@ document.getElementById('showLoginBtn').addEventListener('click', (e) => {
 document.getElementById('registerBtn').addEventListener('click', handleRegister);
 document.getElementById('registerConfirm').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleRegister(); });
 document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+document.getElementById('logBtn').addEventListener('click', openLogModal);
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  try { await api.exportCsv(); } catch (e) { toast(e.message); }
+});
 
 function initializeApp() {
   loadCards();
@@ -1171,6 +1195,32 @@ async function setPerm(id, field, val) {
   } catch (err) {
     toast('权限更新失败');
     openUserMgmt();
+  }
+}
+
+function closeLogModal() {
+  document.getElementById('logModal').classList.add('hidden');
+}
+
+async function openLogModal() {
+  document.getElementById('logModal').classList.remove('hidden');
+  const body = document.getElementById('logBody');
+  try {
+    const data = await api.getLogs(1, 100);
+    if (data.logs.length === 0) {
+      body.innerHTML = '<div class="taxonomy-empty">暂无操作记录</div>';
+      return;
+    }
+    body.innerHTML = '<table class="user-table"><thead><tr><th>时间</th><th>用户</th><th>操作</th><th>目标</th><th>详情</th></tr></thead><tbody>'
+      + data.logs.map(l => '<tr><td>'
+        + esc(l.created_at) + '</td><td>'
+        + esc(l.username || '系统') + '</td><td>'
+        + esc(l.action) + '</td><td>'
+        + esc(l.target_type) + ' #' + l.target_id + '</td><td>'
+        + esc(l.detail || '-') + '</td></tr>').join('')
+      + '</tbody></table>';
+  } catch (err) {
+    body.innerHTML = '<div class="taxonomy-loading">' + err.message + '</div>';
   }
 }
 

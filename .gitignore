@@ -1,9 +1,12 @@
-node_modules/
+﻿node_modules/
 data/
 .env
 *.bat
 *.vbs
 *.exe
-1779*.jpg
-1779*.JPG
 *.txt
+*.db
+uploads/
+*.log
+.DS_Store
+Thumbs.db
