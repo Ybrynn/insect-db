@@ -327,7 +327,7 @@ function renderCards(data) {
         ? `<img class="card-image" src="${item.image_path}" alt="${item.name}" loading="lazy">`
         : `<div class="card-image-placeholder">🦗</div>`}
       <div class="card-body">
-        <h3>${esc(item.name)} ${item.status ? `<span class="status-dot status-${esc(item.status)}" title="${esc(item.status)}"></span>` : ''}</h3>
+        <h3>${esc(item.name)} ${item.category ? `<span class="cat-badge cat-${item.category === '天敌' ? 'enemy' : 'pest'}">${item.category === '天敌' ? '🛡️' : '🐛'} ${esc(item.category)}</span>` : ''} ${item.status ? `<span class="status-dot status-${esc(item.status)}" title="${esc(item.status)}"></span>` : ''}</h3>
         ${item.scientific_name ? `<div class="card-sci-name">${esc(item.scientific_name)}</div>` : ''}
         <div class="card-taxonomy">
           ${item.insect_order ? `<span>${esc(item.insect_order)}</span>` : ''}
@@ -335,8 +335,15 @@ function renderCards(data) {
           ${item.genus ? `<span>${esc(item.genus)}</span>` : ''}
         </div>
         <div class="card-info">
-          ${item.host_plant ? `<span>🌿 寄主：${shortenHost(item.host_plant)}</span>` : ''}
-          ${item.damage_type ? `<span>⚠️ 危害：${esc(item.damage_type)}</span>` : ''}
+          ${item.category === '天敌'
+            ? `
+              ${item.prey_insect ? `<span>🎯 捕食：${esc(item.prey_insect)}</span>` : ''}
+              ${item.predator_stage ? `<span>🧬 狩猎虫期：${esc(item.predator_stage.replace(/,/g, '、'))}</span>` : ''}
+            `
+            : `
+              ${item.host_plant ? `<span>🌿 寄主：${shortenHost(item.host_plant)}</span>` : ''}
+              ${item.damage_type ? `<span>⚠️ 危害：${esc(item.damage_type)}</span>` : ''}
+            `}
         </div>
       </div>
       ${canEdit ? `<div class="card-actions">
@@ -390,7 +397,7 @@ function openModal(title, data) {
     document.getElementById('habit').value = data.habit || '';
     document.getElementById('preyInsect').value = data.prey_insect || '';
     if (data.predator_stage) {
-      const stages = data.predator_stage.split(',');
+      const stages = data.predator_stage.split(/[,、]/);
       document.querySelectorAll('input[name="predator_stage"]').forEach(cb => {
         cb.checked = stages.includes(cb.value);
       });
@@ -440,7 +447,7 @@ document.getElementById('insectForm').addEventListener('submit', async (e) => {
   fd.append('habit', document.getElementById('habit').value.trim());
   fd.append('category', document.querySelector('input[name="category"]:checked')?.value || '');
   fd.append('prey_insect', document.getElementById('preyInsect').value.trim());
-  const predatorStages = [...document.querySelectorAll('input[name="predator_stage"]:checked')].map(cb => cb.value).join(',');
+  const predatorStages = [...document.querySelectorAll('input[name="predator_stage"]:checked')].map(cb => cb.value).join('、');
   fd.append('predator_stage', predatorStages);
   fd.append('status', document.querySelector('input[name="status"]:checked')?.value || '在库');
 
@@ -510,8 +517,15 @@ async function showDetail(id) {
         ${data.genus ? `<div class="detail-meta-item"><div class="label">属</div><div class="value"><i>${esc(data.genus)}</i></div></div>` : ''}
         ${data.scientific_name ? `<div class="detail-meta-item"><div class="label">学名</div><div class="value"><i>${esc(data.scientific_name)}</i></div></div>` : ''}
         ${data.alias_name ? `<div class="detail-meta-item"><div class="label">别名</div><div class="value">${esc(data.alias_name)}</div></div>` : ''}
-        ${data.host_plant ? `<div class="detail-meta-item"><div class="label">寄主植物</div><div class="value">${esc(data.host_plant)}</div></div>` : ''}
-        ${data.damage_type ? `<div class="detail-meta-item"><div class="label">危害类型</div><div class="value">${esc(data.damage_type)}</div></div>` : ''}
+        ${data.category === '天敌'
+          ? `
+            ${data.prey_insect ? `<div class="detail-meta-item"><div class="label">捕食昆虫</div><div class="value">${esc(data.prey_insect)}</div></div>` : ''}
+            ${data.predator_stage ? `<div class="detail-meta-item"><div class="label">狩猎虫期</div><div class="value">${esc(data.predator_stage.replace(/,/g, '、'))}</div></div>` : ''}
+          `
+          : `
+            ${data.host_plant ? `<div class="detail-meta-item"><div class="label">寄主植物</div><div class="value">${esc(data.host_plant)}</div></div>` : ''}
+            ${data.damage_type ? `<div class="detail-meta-item"><div class="label">危害类型</div><div class="value">${esc(data.damage_type)}</div></div>` : ''}
+          `}
         ${data.status ? `<div class="detail-meta-item"><div class="label">在库情况</div><div class="value">${esc(data.status)}</div></div>` : ''}
       </div>
       ${data.morphology ? `<div class="detail-section"><h3>形态特征</h3><p>${esc(data.morphology)}</p></div>` : ''}
